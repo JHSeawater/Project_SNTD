@@ -3,16 +3,16 @@ using TMPro; // TextMeshPro UI 사용 시
 
 public class GameManager : MonoBehaviour
 {
-    public static GameManager Instance;
+    public static GameManager Instance { get; private set; }
 
     [Header("Resources")]
-    public int currentGold = 0;
-    public int currentScore = 0;
-    public int playerHealth = 10; // 기지 체력
+    public int CurrentGold = 0;
+    public int CurrentScore = 0;
+    public int PlayerHealth = 10; // 기지 체력
 
     [Header("UI References")]
-    public TextMeshProUGUI goldText;
-    public TextMeshProUGUI healthText;
+    public TextMeshProUGUI GoldText;
+    public TextMeshProUGUI HealthText;
 
     void Awake()
     {
@@ -25,16 +25,16 @@ public class GameManager : MonoBehaviour
     // 골드 추가 (사과 먹을 때, 적 죽일 때)
     public void AddGold(int amount)
     {
-        currentGold += amount;
+        CurrentGold += amount;
         UpdateUI();
     }
 
     // 골드 사용 (타워 지을 때) -> 성공하면 true, 돈 부족하면 false 반환
     public bool UseGold(int amount)
     {
-        if (currentGold >= amount)
+        if (CurrentGold >= amount)
         {
-            currentGold -= amount;
+            CurrentGold -= amount;
             UpdateUI();
             return true;
         }
@@ -49,10 +49,10 @@ public class GameManager : MonoBehaviour
     // 기지 데미지 처리
     public void TakeDamage(int damage)
     {
-        playerHealth -= damage;
+        PlayerHealth -= damage;
         UpdateUI();
 
-        if (playerHealth <= 0)
+        if (PlayerHealth <= 0)
         {
             GameOver();
         }
@@ -60,8 +60,8 @@ public class GameManager : MonoBehaviour
 
     void UpdateUI()
     {
-        if (goldText != null) goldText.text = $"Gold: {currentGold}";
-        if (healthText != null) healthText.text = $"HP: {playerHealth}";
+        if (GoldText != null) GoldText.text = $"Gold: {CurrentGold}";
+        if (HealthText != null) HealthText.text = $"HP: {PlayerHealth}";
     }
 
     void GameOver()

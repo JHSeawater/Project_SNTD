@@ -4,15 +4,15 @@ using UnityEngine;
 
 public class WaveManager : MonoBehaviour
 {
+    public static WaveManager Instance { get; private set; }
+
     [Header("References")]
-    public GameObject enemyPrefab;   // 소환할 적 프리팹
-    public SnakeController snake;    // 길(Path) 정보를 가져올 뱀 컨트롤러
+    public GameObject EnemyPrefab;   // 소환할 적 프리팹
+    public SnakeController TargetSnake;    // 길(Path) 정보를 가져올 뱀 컨트롤러
 
     [Header("Wave Settings")]
-    public float spawnInterval = 1.5f; // 적 생성 간격
-    public int enemyCount = 5;         // 이번 웨이브에 나올 적의 수
-
-    public static WaveManager Instance { get; private set; }
+    public float SpawnInterval = 1.5f; // 적 생성 간격
+    public int EnemyCount = 5;         // 이번 웨이브에 나올 적의 수
     
     void Awake()
     {
@@ -37,19 +37,27 @@ public class WaveManager : MonoBehaviour
     IEnumerator SpawnEnemyRoutine()
     {
         // 뱀이 만든 길 데이터를 가져옵니다.
-        List<Vector3> path = snake.finalPath;
+        if (TargetSnake == null)
+        {
+            Debug.LogError("WaveManager: TargetSnake가 할당되지 않았습니다!");
+            yield break;
+        }
 
-        for (int i = 0; i < enemyCount; i++)
+        List<Vector3> path = TargetSnake.FinalPath;
+
+        for (int i = 0; i < EnemyCount; i++)
         {
             SpawnEnemy(path);
-            yield return new WaitForSeconds(spawnInterval);
+            yield return new WaitForSeconds(SpawnInterval);
         }
     }
 
     void SpawnEnemy(List<Vector3> path)
     {
+        if (EnemyPrefab == null) return;
+
         // 1. 적 생성 (일단 화면 밖이나 0,0에서 생성하고 위치는 바로 이동시킴)
-        GameObject enemy = Instantiate(enemyPrefab);
+        GameObject enemy = Instantiate(EnemyPrefab);
         
         // 2. 적에게 '이 길로 가라'고 명령서(Path) 전달
         if (enemy.TryGetComponent<EnemyMovement>(out EnemyMovement movement))

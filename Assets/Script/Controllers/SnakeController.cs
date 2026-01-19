@@ -4,50 +4,50 @@ using UnityEngine;
 
 public class SnakeController : MonoBehaviour
 {
-    private Vector2Int direction = Vector2Int.zero; // 현재 이동 방향
-    private Vector2Int lastInputDirection = Vector2Int.right; // 마지막 입력 방향 (반대 방향 전환 방지)
-    private List<Transform> bodyParts = new List<Transform>(); // 몸통 마디들을 담을 리스트
+    private Vector2Int _direction = Vector2Int.zero; // 현재 이동 방향
+    private Vector2Int _lastInputDirection = Vector2Int.right; // 마지막 입력 방향 (반대 방향 전환 방지)
+    private List<Transform> _bodyParts = new List<Transform>(); // 몸통 마디들을 담을 리스트
 
     [Header("Settings")]
-    [SerializeField] private float moveInterval = 0.2f;
-    [SerializeField] private GameObject bodyPrefab;
+    [SerializeField] private float _moveInterval = 0.2f;
+    [SerializeField] private GameObject _bodyPrefab;
 
     [Header("Path Settings")]
-    [SerializeField] private Color roadColor = new Color(0.4f, 0.4f, 0.4f, 1f); // 길로 변했을 때의 색 (회색)
-    public List<Vector3> finalPath = new List<Vector3>(); // 적들이 참고할 최종 경로 데이터
+    [SerializeField] private Color _roadColor = new Color(0.4f, 0.4f, 0.4f, 1f); // 길로 변했을 때의 색 (회색)
+    public List<Vector3> FinalPath = new List<Vector3>(); // 적들이 참고할 최종 경로 데이터
 
     void Start()
     {
-        bodyParts.Clear();
-        bodyParts.Add(this.transform); // 머리를 리스트의 첫 번째로 추가
+        _bodyParts.Clear();
+        _bodyParts.Add(this.transform); // 머리를 리스트의 첫 번째로 추가
         StartCoroutine(MoveRoutine()); // 일정 시간마다 Move 함수를 호출하는 코루틴 시작
     }
 
     void Update()
     {
-        if(direction == Vector2Int.zero)
+        if(_direction == Vector2Int.zero)
         {
             if(Input.GetKeyDown(KeyCode.UpArrow))
-                direction = Vector2Int.up;
+                _direction = Vector2Int.up;
             else if(Input.GetKeyDown(KeyCode.DownArrow))
-                direction = Vector2Int.down;
+                _direction = Vector2Int.down;
             else if(Input.GetKeyDown(KeyCode.LeftArrow))
-                direction = Vector2Int.left;
+                _direction = Vector2Int.left;
             else if(Input.GetKeyDown(KeyCode.RightArrow))
-                direction = Vector2Int.right;
+                _direction = Vector2Int.right;
         }
 
         else
         {
             // 반대 방향 전환 방지
-            if (Input.GetKeyDown(KeyCode.UpArrow) && lastInputDirection != Vector2Int.down)
-                direction = Vector2Int.up;
-            else if (Input.GetKeyDown(KeyCode.DownArrow) && lastInputDirection != Vector2Int.up)
-                direction = Vector2Int.down;
-            else if (Input.GetKeyDown(KeyCode.LeftArrow) && lastInputDirection != Vector2Int.right)
-                direction = Vector2Int.left;
-            else if (Input.GetKeyDown(KeyCode.RightArrow) && lastInputDirection != Vector2Int.left)
-                direction = Vector2Int.right;
+            if (Input.GetKeyDown(KeyCode.UpArrow) && _lastInputDirection != Vector2Int.down)
+                _direction = Vector2Int.up;
+            else if (Input.GetKeyDown(KeyCode.DownArrow) && _lastInputDirection != Vector2Int.up)
+                _direction = Vector2Int.down;
+            else if (Input.GetKeyDown(KeyCode.LeftArrow) && _lastInputDirection != Vector2Int.right)
+                _direction = Vector2Int.left;
+            else if (Input.GetKeyDown(KeyCode.RightArrow) && _lastInputDirection != Vector2Int.left)
+                _direction = Vector2Int.right;
         }
     }
 
@@ -55,23 +55,23 @@ public class SnakeController : MonoBehaviour
     {
         while (true)
         {
-            if(direction == Vector2Int.zero)
+            if(_direction == Vector2Int.zero)
             {
                 yield return null;
                 continue;
             }
-            yield return new WaitForSeconds(moveInterval); // 기본 0.2초
+            yield return new WaitForSeconds(_moveInterval); // 기본 0.2초
 
-            lastInputDirection = direction;
+            _lastInputDirection = _direction;
             
             // [핵심] 꼬리부터 앞 마디의 위치로 한 칸씩 이동 (역순 루프)
-            for (int i = bodyParts.Count - 1; i > 0; i--)
+            for (int i = _bodyParts.Count - 1; i > 0; i--)
             {
-                bodyParts[i].position = bodyParts[i - 1].position;
+                _bodyParts[i].position = _bodyParts[i - 1].position;
             }
 
             // 머리 이동
-            transform.position += (Vector3Int)direction;
+            transform.position += (Vector3Int)_direction;
         }
     }
 
@@ -117,24 +117,24 @@ public class SnakeController : MonoBehaviour
 
     private void BakePath()
     {
-        finalPath.Clear();
+        FinalPath.Clear();
 
         // 1. 데이터 추출 (중요: 적은 꼬리 -> 머리 방향으로 옵니다)
-        // 현재 bodyParts[0]은 머리(Goal 위치), 마지막은 꼬리입니다.
+        // 현재 _bodyParts[0]은 머리(Goal 위치), 마지막은 꼬리입니다.
         // 따라서 역순으로 돌지 않고, 정순으로 담은 뒤 나중에 적이 거꾸로 쓰거나,
         // 여기서 아예 꼬리부터 머리 순서로 뒤집어서 저장합니다.
 
-        for (int i = bodyParts.Count - 1; i >= 0; i--)
+        for (int i = _bodyParts.Count - 1; i >= 0; i--)
         {
-            finalPath.Add(bodyParts[i].position);
+            FinalPath.Add(_bodyParts[i].position);
         }
 
-        foreach (Transform part in bodyParts)
+        foreach (Transform part in _bodyParts)
         {
             // 색상 변경 (SpriteRenderer가 있다면)
             if (part.TryGetComponent<SpriteRenderer>(out SpriteRenderer sprite))
             {
-                sprite.color = roadColor; // 회색 등으로 변경
+                sprite.color = _roadColor; // 회색 등으로 변경
                 sprite.sortingOrder = -1; // 적이나 타워보다 뒤에 보이도록 순서 내리기
             }
         // 충돌체 끄기 (타워 설치 클릭 등에 방해되지 않게)
@@ -144,27 +144,29 @@ public class SnakeController : MonoBehaviour
             }
         }
 
-        Debug.Log("🐍 뱀 경로 베이킹 완료! 경로 길이: " + finalPath.Count);
+        Debug.Log("🐍 뱀 경로 베이킹 완료! 경로 길이: " + FinalPath.Count);
     }
 
     void Grow()
     {
         // 새 몸통 생성
-        GameObject newPart = Instantiate(bodyPrefab);
+        GameObject newPart = Instantiate(_bodyPrefab);
         // 화면 밖(-100, -100)에 임시로 생성
         newPart.transform.position = new Vector3(-100, -100, 0);
         // 리스트에 추가
-        bodyParts.Add(newPart.transform);
+        _bodyParts.Add(newPart.transform);
+        // 골드 추가
+        GameManager.Instance.AddGold(10);
     }
 
     public List<Vector3> GetSnakePath()
-{
-    List<Vector3> path = new List<Vector3>();
-    // 적이 꼬리에서 머리 방향으로 오게 하려면 리스트를 그대로 사용하거나 역순으로 담습니다.
-    foreach (Transform part in bodyParts)
     {
-        path.Add(part.position);
+        List<Vector3> path = new List<Vector3>();
+        // 적이 꼬리에서 머리 방향으로 오게 하려면 리스트를 그대로 사용하거나 역순으로 담습니다.
+        foreach (Transform part in _bodyParts)
+        {
+            path.Add(part.position);
+        }
+        return path;
     }
-    return path;
-}
 }
