@@ -2,19 +2,36 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine.SceneManagement; // 씬 재시작용
+using System.Linq; // Queue.Last() 사용을 위해 추가
+
 public class SnakeController : MonoBehaviour
 {
-    private Vector2Int _direction = Vector2Int.zero; // 현재 이동 방향
-    private Vector2Int _lastInputDirection = Vector2Int.right; // 마지막 입력 방향 (반대 방향 전환 방지)
+    public static SnakeController Instance { get; private set; }
+
+    private Vector2Int _currentDirection = Vector2Int.zero; // 현재 이동 방향
+    private Queue<Vector2Int> _inputQueue = new Queue<Vector2Int>(); // 입력 버퍼
+
     private List<Transform> _bodyParts = new List<Transform>(); // 몸통 마디들을 담을 리스트
+    private bool _isPaused = false; // 일시정지 상태
 
     [Header("Settings")]
     [SerializeField] private float _moveInterval = 0.2f;
     [SerializeField] private GameObject _bodyPrefab;
+    [SerializeField] private bool _enablePause = true; // 일시정지 기능 활성화 여부
 
     [Header("Path Settings")]
     [SerializeField] private Color _roadColor = new Color(0.4f, 0.4f, 0.4f, 1f); // 길로 변했을 때의 색 (회색)
     public List<Vector3> FinalPath = new List<Vector3>(); // 적들이 참고할 최종 경로 데이터
+
+    void Awake()
+    {
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
+    }
 
     void Start()
     {
@@ -25,54 +42,97 @@ public class SnakeController : MonoBehaviour
 
     void Update()
     {
-        if(_direction == Vector2Int.zero)
+        HandleInput();
+    }
+
+    void HandleInput()
+    {
+        // 일시정지 토글 (스페이스바)
+        if (_enablePause && Input.GetKeyDown(KeyCode.Space))
         {
-            if(Input.GetKeyDown(KeyCode.UpArrow))
-                _direction = Vector2Int.up;
-            else if(Input.GetKeyDown(KeyCode.DownArrow))
-                _direction = Vector2Int.down;
-            else if(Input.GetKeyDown(KeyCode.LeftArrow))
-                _direction = Vector2Int.left;
-            else if(Input.GetKeyDown(KeyCode.RightArrow))
-                _direction = Vector2Int.right;
+            _isPaused = true;
+            Debug.Log("일시정지: 방향키를 누르면 재개합니다.");
         }
 
-        else
+        // 방향키 입력 감지
+        if (Input.GetKeyDown(KeyCode.UpArrow)) EnqueueDirection(Vector2Int.up);
+        else if (Input.GetKeyDown(KeyCode.DownArrow)) EnqueueDirection(Vector2Int.down);
+        else if (Input.GetKeyDown(KeyCode.LeftArrow)) EnqueueDirection(Vector2Int.left);
+        else if (Input.GetKeyDown(KeyCode.RightArrow)) EnqueueDirection(Vector2Int.right);
+    }
+
+    // 입력 버퍼에 방향 추가 시도
+    void EnqueueDirection(Vector2Int newDir)
+    {
+        // 정지 상태였다면 해제하고 즉시 이동 처리
+        if (_isPaused)
         {
-            // 반대 방향 전환 방지
-            if (Input.GetKeyDown(KeyCode.UpArrow) && _lastInputDirection != Vector2Int.down)
-                _direction = Vector2Int.up;
-            else if (Input.GetKeyDown(KeyCode.DownArrow) && _lastInputDirection != Vector2Int.up)
-                _direction = Vector2Int.down;
-            else if (Input.GetKeyDown(KeyCode.LeftArrow) && _lastInputDirection != Vector2Int.right)
-                _direction = Vector2Int.left;
-            else if (Input.GetKeyDown(KeyCode.RightArrow) && _lastInputDirection != Vector2Int.left)
-                _direction = Vector2Int.right;
+            _isPaused = false;
+            // 버퍼 비우고 현재 입력 즉시 적용
+            _inputQueue.Clear();
+            _inputQueue.Enqueue(newDir);
+            return;
         }
+
+        // 버퍼가 너무 많이 쌓이면 반응이 느려지므로 최대 2개까지만 예약
+        if (_inputQueue.Count >= 2) return;
+
+        // 검증 기준: 버퍼에 예약된 게 있다면 그 마지막 예약 방향, 없다면 현재 이동 방향
+        Vector2Int lastPlannedDir = _inputQueue.Count > 0 ? _inputQueue.Last() : _currentDirection;
+
+        // 1. 반대 방향 전환 방지 (180도 턴 불가)
+        if (newDir == -lastPlannedDir) return;
+
+        // 2. 같은 방향 중복 입력 방지
+        if (newDir == lastPlannedDir) return;
+
+        // 유효하면 큐에 추가
+        _inputQueue.Enqueue(newDir);
     }
 
     IEnumerator MoveRoutine()
     {
         while (true)
         {
-            if(_direction == Vector2Int.zero)
+            // 일시정지 상태면 대기
+            if (_isPaused)
             {
                 yield return null;
                 continue;
             }
-            yield return new WaitForSeconds(_moveInterval); // 기본 0.2초
 
-            _lastInputDirection = _direction;
-            
-            // [핵심] 꼬리부터 앞 마디의 위치로 한 칸씩 이동 (역순 루프)
-            for (int i = _bodyParts.Count - 1; i > 0; i--)
+            // 첫 시작(방향 없음)이면 대기하되, 입력이 들어오면 시작
+            if (_currentDirection == Vector2Int.zero && _inputQueue.Count == 0)
             {
-                _bodyParts[i].position = _bodyParts[i - 1].position;
+                yield return null;
+                continue;
             }
 
-            // 머리 이동
-            transform.position += (Vector3Int)_direction;
+            yield return new WaitForSeconds(_moveInterval); // 기본 0.2초
+
+            // 다시 한 번 일시정지 체크
+            if (_isPaused) continue;
+
+            // 버퍼에 입력된 다음 방향이 있다면 꺼내서 적용
+            if (_inputQueue.Count > 0)
+            {
+                _currentDirection = _inputQueue.Dequeue();
+            }
+
+            MoveSnake();
         }
+    }
+
+    void MoveSnake()
+    {
+        // 꼬리부터 앞 마디의 위치로 한 칸씩 이동 (역순 루프)
+        for (int i = _bodyParts.Count - 1; i > 0; i--)
+        {
+            _bodyParts[i].position = _bodyParts[i - 1].position;
+        }
+
+        // 머리 이동
+        transform.position += (Vector3Int)_currentDirection;
     }
 
     private void OnTriggerEnter2D(Collider2D collision)
@@ -95,11 +155,12 @@ public class SnakeController : MonoBehaviour
 
         else if (collision.CompareTag("Wall") || collision.CompareTag("Body"))
         {
-            // 시작 직후(0.1초 이내) 발생하는 충돌은 무시하는 안전장치를 넣을 수도 있습니다.
+            // 시작 직후 안전장치
             if (Time.timeSinceLevelLoad < 0.1f) return; 
 
-            Debug.Log($"게임 오버! 부딪힌 대상: {collision.gameObject.tag}");
-            Time.timeScale = 0;
+            Debug.Log($"충돌 발생 ({collision.tag}) -> 게임 재시작");
+            // 현재 씬을 다시 로드하여 재시작
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
     }
 
@@ -112,7 +173,8 @@ public class SnakeController : MonoBehaviour
     
         BakePath();
 
-        WaveManager.Instance.StartWave();
+        // WaveManager 직접 호출 대신 GameManager를 통해 페이즈 전환
+        GameManager.Instance.StartDefensePhase();
     }
 
     private void BakePath()

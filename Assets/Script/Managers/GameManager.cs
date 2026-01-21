@@ -1,18 +1,28 @@
 using UnityEngine;
 using TMPro; // TextMeshPro UI 사용 시
 
+public enum GamePhase
+{
+    Snake,
+    Defense
+}
+
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
+    [Header("Game State")]
+    public GamePhase CurrentPhase = GamePhase.Snake;
+
     [Header("Resources")]
-    public int CurrentGold = 0;
+    [SerializeField] public int CurrentGold = 100;
     public int CurrentScore = 0;
-    public int PlayerHealth = 10; // 기지 체력
+    [SerializeField] public int PlayerHealth = 10; // 기지 체력
 
     [Header("UI References")]
     public TextMeshProUGUI GoldText;
     public TextMeshProUGUI HealthText;
+    public GameObject ShopUI; // 상점 UI 패널
 
     void Awake()
     {
@@ -20,6 +30,19 @@ public class GameManager : MonoBehaviour
         else Destroy(gameObject);
         
         UpdateUI();
+        if (ShopUI != null) ShopUI.SetActive(false); // 시작 시 상점 숨김
+    }
+
+    // 디펜스 모드 시작
+    public void StartDefensePhase()
+    {
+        CurrentPhase = GamePhase.Defense;
+        Debug.Log("Phase 2: 디펜스 모드 시작");
+
+        if (ShopUI != null) ShopUI.SetActive(true); // 상점 표시
+        
+        // 웨이브 즉시 시작이 아니라 준비 단계로 진입
+        WaveManager.Instance.SetupDefensePhase();
     }
 
     // 골드 추가 (사과 먹을 때, 적 죽일 때)
