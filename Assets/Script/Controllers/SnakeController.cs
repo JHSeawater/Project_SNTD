@@ -1,10 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
-using UnityEngine;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine.SceneManagement; // 씬 재시작용
 using System.Linq; // Queue.Last() 사용을 위해 추가
 
@@ -29,7 +25,7 @@ public class SnakeController : MonoBehaviour
 
     void Awake()
     {
-        if (Instance == null) Instance = this;
+        if (Instance == null) Instance = this; //싱글톤 선언
         else Destroy(gameObject);
     }
 
@@ -99,7 +95,7 @@ public class SnakeController : MonoBehaviour
             {
                 yield return null;
                 continue;
-            }
+            }  
 
             // 첫 시작(방향 없음)이면 대기하되, 입력이 들어오면 시작
             if (_currentDirection == Vector2Int.zero && _inputQueue.Count == 0)
@@ -115,7 +111,7 @@ public class SnakeController : MonoBehaviour
 
             // 버퍼에 입력된 다음 방향이 있다면 꺼내서 적용
             if (_inputQueue.Count > 0)
-            {
+            {   
                 _currentDirection = _inputQueue.Dequeue();
             }
 
@@ -145,9 +141,19 @@ public class SnakeController : MonoBehaviour
             
             Grow();
             SpawnManager.Instance.SpawnApple();
+            SpawnManager.Instance.TrySpawnGold(); // 사과 먹으면 골드 스폰 시도
             Destroy(collision.gameObject);
         }
-
+        else if (collision.CompareTag("Gold"))
+        {
+            // 확률 기반 골드 획득
+            int amount = CalculateGoldAmount();
+            GameManager.Instance.AddGold(amount);
+            
+            SpawnManager.Instance.SetGoldStatus(false); // 골드 먹었으므로 없음 처리
+            Destroy(collision.gameObject);
+            Debug.Log($"💰 골드 획득! (+{amount}G)");
+        }
         else if (collision.CompareTag("Goal"))
         {
             FinishSnakeGame();
@@ -196,7 +202,7 @@ public class SnakeController : MonoBehaviour
             // 색상 변경 (SpriteRenderer가 있다면)
             if (part.TryGetComponent<SpriteRenderer>(out SpriteRenderer sprite))
             {
-                sprite.color = _roadColor; // 회색 등으로 변경
+                sprite.color = _roadColor;
                 sprite.sortingOrder = -1; // 적이나 타워보다 뒤에 보이도록 순서 내리기
             }
         // 충돌체 끄기 (타워 설치 클릭 등에 방해되지 않게)
@@ -219,6 +225,18 @@ public class SnakeController : MonoBehaviour
         _bodyParts.Add(newPart.transform);
         // 골드 추가
         GameManager.Instance.AddGold(10);
+    }
+
+    private int CalculateGoldAmount()
+    {
+        int rand = Random.Range(0, 100); // 0 ~ 99
+
+        if (rand < 20) return 5;       // 20%
+        if (rand < 50) return 10;      // 30% (20~49)
+        if (rand < 75) return 15;      // 25% (50~74)
+        if (rand < 90) return 20;      // 15% (75~89)
+        if (rand < 95) return 25;      // 5%  (90~94)
+        return 30;                     // 5%  (95~99)
     }
 
     public List<Vector3> GetSnakePath()

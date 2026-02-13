@@ -40,6 +40,12 @@ public class Enemy : MonoBehaviour
             GameManager.Instance.AddGold(_goldReward);
         }
 
+        // [최적화] 웨이브 매니저에게 사망 알림
+        if (WaveManager.Instance != null)
+        {
+            WaveManager.Instance.OnEnemyDied();
+        }
+
         // 사망 이펙트가 있다면 여기서 생성 (Instantiate)
         
         Destroy(gameObject);

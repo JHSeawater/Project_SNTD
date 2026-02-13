@@ -33,19 +33,12 @@ public class BuildManager : MonoBehaviour
 
     void Start()
     {
-        // 타일맵 자동 찾기 (이름 기반)
-        if (_floorTilemap == null)
+        // [수정] GameObject.Find는 이름 변경에 취약하므로 Inspector에서 할당하는 것을 권장합니다.
+        if (_floorTilemap == null || _islandTilemap == null)
         {
-            GameObject floorObj = GameObject.Find("Tilemap"); // 기본 이름
-            if(floorObj) _floorTilemap = floorObj.GetComponent<Tilemap>();
-        }
-        if (_islandTilemap == null)
-        {
-            GameObject islandObj = GameObject.Find("IslandTilemap");
-            if(islandObj) _islandTilemap = islandObj.GetComponent<Tilemap>();
+            Debug.LogWarning("BuildManager: 타일맵 참조가 누락되었습니다. Inspector에서 할당해주세요.");
         }
 
-        // [수정] 시작 시 자동 선택 로직 제거 -> 버튼을 눌러야만 선택되도록
         _selectedTower = null;
     }
 
@@ -153,21 +146,20 @@ public class BuildManager : MonoBehaviour
 
         // 1. 이미 타워나 장애물이 있는지 확인 (Physics2D)
         // 타워 크기(1x1)를 고려하여 Box로 영역 체크 (0.9f로 살짝 여유를 둠)
-        Collider2D hit = Physics2D.OverlapBox(new Vector2(pos.x, pos.y), new Vector2(0.9f, 0.9f), 0f);
-        if (hit != null)
+        // [수정] OverlapBox -> OverlapBoxAll: 겹쳐있는 모든 콜라이더를 검사해야 함
+        Collider2D[] hits = Physics2D.OverlapBoxAll(new Vector2(pos.x, pos.y), new Vector2(0.9f, 0.9f), 0f);
+        
+        foreach (Collider2D hit in hits)
         {
-            // [중요] 섬(Island)은 Collider가 있어서 뱀은 막지만, 타워 건설은 허용해야 함!
-            // IslandTilemap의 Collider인지 확인하여 예외 처리
-            if (hit.gameObject.name.Contains("Island") || hit.CompareTag("Wall")) 
+            // Island는 건설 가능 영역이므로 무시하고 계속 검사
+            if (hit.gameObject.name.Contains("Island")) 
             {
-                // 섬은 건설 방해물이 아님 -> 통과
-                // 단, Tag가 "Wall"인 경우 맵 외곽 벽일 수도 있으니 이름으로 Island 체크 권장
+                continue;
             }
-            else
-            {
-                // Debug.Log($"건설 불가: 장애물({hit.name})이 있습니다.");
-                return false;
-            }
+
+            // 그 외의 모든 충돌체(Wall, Tower 등)가 하나라도 감지되면 건설 불가
+            Debug.Log($"건설 불가: 장애물({hit.name})이 있습니다.");
+            return false;
         }
 
         // 2. 뱀의 경로(몸통) 위인지 확인

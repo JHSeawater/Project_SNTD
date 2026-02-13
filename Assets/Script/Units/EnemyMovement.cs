@@ -57,6 +57,12 @@ public class EnemyMovement : MonoBehaviour
             Debug.LogWarning("GameManager 인스턴스를 찾을 수 없습니다.");
         }
 
+        // [버그 수정] 적이 죽지 않고 도착해서 사라질 때도 카운트를 줄여야 함
+        if (WaveManager.Instance != null)
+        {
+            WaveManager.Instance.OnEnemyDied();
+        }
+
         Destroy(gameObject);
     }
 }

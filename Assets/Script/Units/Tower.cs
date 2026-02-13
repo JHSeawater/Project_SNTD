@@ -15,7 +15,9 @@ public class Tower : MonoBehaviour
 
     private Transform _target;
     private float _fireCountdown = 0f;
-    private const string ENEMY_TAG = "Enemy";
+    
+    // [최적화] GC 방지를 위한 충돌체 검사 버퍼 (최대 20개까지만 검사)
+    private Collider2D[] _targetBuffer = new Collider2D[20];
 
     void Start()
     {
@@ -25,21 +27,18 @@ public class Tower : MonoBehaviour
 
     void UpdateTarget()
     {
-        // 1. 사거리 내의 모든 콜라이더 검출
-        Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, Range);
+        // 1. 사거리 내의 콜라이더 검출 (NonAlloc 사용으로 메모리 최적화)
+        // Physics2D.OverlapCircleAll 대신 미리 할당된 배열을 재사용
+        int hitCount = Physics2D.OverlapCircleNonAlloc(transform.position, Range, _targetBuffer);
         
-        // [디버그] 사거리 내 감지된 물체가 있는지 확인
-        // if (hits.Length > 0) Debug.Log($"타워 사거리 내 감지된 물체 수: {hits.Length}");
-
         float shortestDistance = Mathf.Infinity;
         GameObject nearestEnemy = null;
 
-        foreach (Collider2D hit in hits)
+        for (int i = 0; i < hitCount; i++)
         {
-            // [디버그] 감지된 물체의 이름과 태그 출력 (적이 감지 안 되면 이 로그를 확인)
-            // Debug.Log($"감지됨: {hit.name} / 태그: {hit.tag}");
-
-            if (hit.CompareTag(ENEMY_TAG))
+            Collider2D hit = _targetBuffer[i];
+            
+            if (hit.CompareTag(Define.Tags.Enemy))
             {
                 float distanceToEnemy = Vector2.Distance(transform.position, hit.transform.position);
                 if (distanceToEnemy < shortestDistance)

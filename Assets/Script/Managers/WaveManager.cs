@@ -62,6 +62,9 @@ public class WaveManager : MonoBehaviour
         if (StartWaveButton != null) StartWaveButton.SetActive(false);
     }
 
+    // 현재 살아있는 적의 수 (최적화용)
+    [HideInInspector] public int EnemiesAlive = 0;
+
     IEnumerator SpawnWaveRoutine(WaveData wave)
     {
         _isWaveRunning = true;
@@ -75,13 +78,8 @@ public class WaveManager : MonoBehaviour
             yield return new WaitForSeconds(wave.SpawnInterval);
         }
 
-        // 웨이브 종료 대기 로직은 적 처치 수 등을 카운트해서 구현해야 하지만,
-        // 여기서는 일단 모든 적이 생성된 후 일정 시간 뒤에 끝난 것으로 간주하거나
-        // GameManager가 적 숫자를 세서 호출해주는 방식이 좋습니다.
-        // 임시로: 적 생성 완료 후 "생성 끝" 상태만 기록.
-        
-        // 실제 게임에서는 "필드의 적이 0마리가 되면" 다음 웨이브 버튼 활성화
-        yield return new WaitUntil(() => GameObject.FindGameObjectsWithTag("Enemy").Length == 0);
+        // [최적화] FindObjectsWithTag 대신 변수 체크
+        yield return new WaitUntil(() => EnemiesAlive == 0);
 
         WaveCompleted();
     }
@@ -93,8 +91,8 @@ public class WaveManager : MonoBehaviour
         
         Debug.Log("웨이브 종료! 정비 시간입니다.");
         
-        // 이자 지급 등 보상 로직 (GameManager 연동)
-        GameManager.Instance.AddGold(100); // 웨이브 클리어 보상
+        // 이자 지급 등 보상 로직
+        GameManager.Instance.AddGold(100); 
 
         if (_currentWaveIndex >= Waves.Count)
         {
@@ -103,7 +101,6 @@ public class WaveManager : MonoBehaviour
         }
         else
         {
-            // 다음 웨이브 버튼 활성화
             if (StartWaveButton != null) StartWaveButton.SetActive(true);
             UpdateWaveUI();
         }
@@ -112,12 +109,20 @@ public class WaveManager : MonoBehaviour
     void SpawnEnemy(GameObject prefab, List<Vector3> path)
     {
         if (prefab == null) return;
-        GameObject enemy = Instantiate(prefab);
         
+        GameObject enemy = Instantiate(prefab);
+        EnemiesAlive++; // 적 숫자 증가
+
         if (enemy.TryGetComponent<EnemyMovement>(out EnemyMovement movement))
         {
             movement.SetPath(path);
         }
+    }
+
+    // 적이 죽을 때 호출 (Enemy 스크립트에서 호출)
+    public void OnEnemyDied()
+    {
+        EnemiesAlive--;
     }
 
     void UpdateWaveUI()

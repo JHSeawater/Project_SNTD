@@ -10,6 +10,8 @@ TagManager:
   - Goal
   - Background
   - Enemy
+  - Gold
+  - Floor
   layers:
   - Default
   - TransparentFX

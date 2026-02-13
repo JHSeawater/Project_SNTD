@@ -29,6 +29,9 @@ public class GameManager : MonoBehaviour
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
         
+        // 씬 재시작 시 멈춰있는 시간 초기화
+        Time.timeScale = 1f;
+
         UpdateUI();
         if (ShopUI != null) ShopUI.SetActive(false); // 시작 시 상점 숨김
     }
